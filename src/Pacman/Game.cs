@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Pacman.Components;
 using Pacman.Services;
+using Pacman.Systems;
 using Serilog;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -20,8 +21,8 @@ public sealed class Game
     private GraphicsDevice _graphicsDevice = null!;
     private SimpleShaderProgram _shader = null!;
     private InputManager _inputManager = null!;
-    private Camera _camera = null!;
     private WorldManager _worldManager = null!;
+    private RenderSystem _renderSystem = null!;
 
     private Game()
     {
@@ -142,6 +143,8 @@ public sealed class Game
             .AddSingleton<MeshFactory>()
             .AddSingleton<World>()
             .AddSingleton<WorldManager>()
+            .AddSingleton<Camera>()
+            .AddSingleton<RenderSystem>()
             .BuildServiceProvider();
 
         _window = _services.GetRequiredService<IWindow>();
@@ -161,6 +164,7 @@ public sealed class Game
         _shader = _services.GetRequiredService<SimpleShaderProgram>();
         _inputManager = _services.GetRequiredService<InputManager>();
         _worldManager = _services.GetRequiredService<WorldManager>();
+        _renderSystem = _services.GetRequiredService<RenderSystem>();
 
         _worldManager.SpawnCrates(new Vector3D<float>(-12, 0, 0));
         _worldManager.SpawnGhost("blinky", new Vector3D<float>(-8, 0, 0));
@@ -169,8 +173,6 @@ public sealed class Game
         _worldManager.SpawnGhost("inky", new Vector3D<float>(4, 0, 0));
         _worldManager.SpawnGhost("clyde", new Vector3D<float>(8, 0, 0));
         _worldManager.SpawnCrates(new Vector3D<float>(12, 0, 0));
-
-        _camera = new Camera(_window.Size.X / (float)_window.Size.Y);
 
         Resize(_window.Size);
     }
@@ -223,34 +225,9 @@ public sealed class Game
         });
     }
 
-    private void Render(double deltaTime)
-    {
-        _graphicsDevice.Clear(ClearBuffers.Color | ClearBuffers.Depth);
+    private void Render(double deltaTime) => _renderSystem.Render();
 
-        _shader.View = _camera.ViewMatrix;
-
-        _worldManager.World.Stream<Transform, Mesh>().For(_shader, static (SimpleShaderProgram shader, ref Transform transform, ref Mesh mesh) =>
-        {
-            shader.GraphicsDevice.VertexArray = mesh.VertexArray;
-            shader.Texture = mesh.Texture;
-            shader.World = transform.World;
-            if (mesh.VertexArray.IndexBuffer is not null)
-                shader.GraphicsDevice.DrawElements(mesh.PrimitiveType, 0, mesh.StorageLength);
-            else
-                shader.GraphicsDevice.DrawArrays(mesh.PrimitiveType, 0, mesh.StorageLength);
-        });
-    }
-
-    private void Resize(Vector2D<int> size)
-    {
-        if (size.X == 0 || size.Y == 0)
-            return;
-
-        _graphicsDevice.SetViewport(0, 0, (uint)size.X, (uint)size.Y);
-
-        _camera.AspectRatio = size.X / (float)size.Y;
-        _shader.Projection = _camera.ProjectionMatrix;
-    }
+    private void Resize(Vector2D<int> size) => _renderSystem.Resize(size);
 
     private void Closing()
     {

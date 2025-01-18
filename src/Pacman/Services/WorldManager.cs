@@ -19,7 +19,7 @@ public sealed class WorldManager(World world, MeshFactory meshFactory, ILogger<W
         {
             crateSpawner.Add(Transform.Identity with { Position = position });
             crateSpawner.Spawn();
-            logger.LogInformation("Spawned {T} at {Position}", "Crate", position);
+            logger.LogInformation("Spawned {T} at {Position}", "crate", position);
         }
     }
 
